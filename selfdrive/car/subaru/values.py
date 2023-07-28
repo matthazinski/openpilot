@@ -111,6 +111,35 @@ FW_QUERY_CONFIG = FwQueryConfig(
       [StdQueries.TESTER_PRESENT_REQUEST, SUBARU_VERSION_REQUEST],
       [StdQueries.TESTER_PRESENT_RESPONSE, SUBARU_VERSION_RESPONSE],
     ),
+    # some eyesight modules don't like TESTER_PRESENT
+    Request(
+      [SUBARU_VERSION_REQUEST],
+      [SUBARU_VERSION_RESPONSE],
+    ),
+
+    # also try on bus1 without multiplexing
+    Request(
+      [StdQueries.TESTER_PRESENT_REQUEST, SUBARU_VERSION_REQUEST],
+      [StdQueries.TESTER_PRESENT_RESPONSE, SUBARU_VERSION_RESPONSE],
+      obd_multiplexing=False
+    ),
+    Request(
+      [SUBARU_VERSION_REQUEST],
+      [SUBARU_VERSION_RESPONSE],
+      obd_multiplexing=False
+    ),
+
+    # and bus 0
+    Request(
+      [StdQueries.TESTER_PRESENT_REQUEST, SUBARU_VERSION_REQUEST],
+      [StdQueries.TESTER_PRESENT_RESPONSE, SUBARU_VERSION_RESPONSE],
+      bus=0
+    ),
+    Request(
+      [SUBARU_VERSION_REQUEST],
+      [SUBARU_VERSION_RESPONSE],
+      bus=0
+    ),
   ],
 )
 
@@ -585,10 +614,10 @@ FW_VERSIONS = {
     (Ecu.fwdCamera, 0x787, None): [
       b'\t!\x08\x046\x05!\x08\x01/',
     ],
-    (Ecu.engine, 0x7e0, None): [
+    (Ecu.engine, 0x7a2, None): [
     
     ],
-    (Ecu.transmission, 0x7e1, None): [
+    (Ecu.transmission, 0x7a3, None): [
     
     ]
   },
@@ -602,10 +631,10 @@ FW_VERSIONS = {
     (Ecu.fwdCamera, 0x787, None): [
 
     ],
-    (Ecu.engine, 0x7e0, None): [
+    (Ecu.engine, 0x7a2, None): [
     
     ],
-    (Ecu.transmission, 0x7e1, None): [
+    (Ecu.transmission, 0x7a3, None): [
     
     ]
   }
