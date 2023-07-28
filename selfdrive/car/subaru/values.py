@@ -620,23 +620,6 @@ FW_VERSIONS = {
     (Ecu.transmission, 0x7a3, None): [
     
     ]
-  },
-  CAR.LEGACY_2023: {
-    (Ecu.abs, 0x7b0, None): [
-
-    ],
-    (Ecu.eps, 0x746, None): [
-
-    ],
-    (Ecu.fwdCamera, 0x787, None): [
-
-    ],
-    (Ecu.engine, 0x7a2, None): [
-    
-    ],
-    (Ecu.transmission, 0x7a3, None): [
-    
-    ]
   }
 }
 
