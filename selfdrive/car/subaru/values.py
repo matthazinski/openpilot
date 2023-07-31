@@ -111,34 +111,14 @@ FW_QUERY_CONFIG = FwQueryConfig(
       [StdQueries.TESTER_PRESENT_REQUEST, SUBARU_VERSION_REQUEST],
       [StdQueries.TESTER_PRESENT_RESPONSE, SUBARU_VERSION_RESPONSE],
     ),
+    Request(
+      [StdQueries.SHORT_TESTER_PRESENT_REQUEST, SUBARU_VERSION_REQUEST],
+      [StdQueries.SHORT_TESTER_PRESENT_REQUEST, SUBARU_VERSION_RESPONSE],
+    ),
     # some eyesight modules don't like TESTER_PRESENT
     Request(
       [SUBARU_VERSION_REQUEST],
       [SUBARU_VERSION_RESPONSE],
-    ),
-
-    # also try on bus1 without multiplexing
-    Request(
-      [StdQueries.TESTER_PRESENT_REQUEST, SUBARU_VERSION_REQUEST],
-      [StdQueries.TESTER_PRESENT_RESPONSE, SUBARU_VERSION_RESPONSE],
-      obd_multiplexing=False
-    ),
-    Request(
-      [SUBARU_VERSION_REQUEST],
-      [SUBARU_VERSION_RESPONSE],
-      obd_multiplexing=False
-    ),
-
-    # and bus 0
-    Request(
-      [StdQueries.TESTER_PRESENT_REQUEST, SUBARU_VERSION_REQUEST],
-      [StdQueries.TESTER_PRESENT_RESPONSE, SUBARU_VERSION_RESPONSE],
-      bus=0
-    ),
-    Request(
-      [SUBARU_VERSION_REQUEST],
-      [SUBARU_VERSION_RESPONSE],
-      bus=0
     ),
   ],
 )
