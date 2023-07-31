@@ -615,7 +615,7 @@ FW_VERSIONS = {
       b'\t!\x08\x046\x05!\x08\x01/',
     ],
     (Ecu.engine, 0x7a2, None): [
-    
+      b'\xed,\xa2q\x07',
     ],
     (Ecu.transmission, 0x7a3, None): [
     
