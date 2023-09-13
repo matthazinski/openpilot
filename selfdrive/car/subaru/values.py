@@ -587,7 +587,8 @@ FW_VERSIONS = {
   CAR.OUTBACK_2023: {
     (Ecu.abs, 0x7b0, None): [
       b'\xa1 #\x17\x00',
-      b'\xa1 #\x16\x00'
+      b'\xa1 #\x16\x00',
+      b'\xa1 #\x14\x00',
     ],
     (Ecu.eps, 0x746, None): [
       b'+\xc0\x12\x11\x00',
