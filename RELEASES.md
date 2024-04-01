@@ -59,6 +59,8 @@ Version 0.9.4 (2023-07-27)
   * Alerts are shown inside the border. Black means info, orange means warning, and red means critical alert
 * Bookmarked segments are preserved on the device's storage
 * Ford Focus 2018 support
+* Subaru Forester 2022 support thanks to martinl!
+* Subaru Outback 2023 support thanks to martinl!
 * Kia Carnival 2023 support thanks to sunnyhaibin!
 
 Version 0.9.3 (2023-06-29)

@@ -3,7 +3,7 @@ from enum import Enum, IntFlag
 
 from cereal import car
 from panda.python import uds
-from openpilot.selfdrive.car import CarSpecs, DbcDict, PlatformConfig, Platforms, dbc_dict
+from openpilot.selfdrive.car import AngleRateLimit, CarSpecs, DbcDict, PlatformConfig, Platforms, dbc_dict
 from openpilot.selfdrive.car.docs_definitions import CarFootnote, CarHarness, CarDocs, CarParts, Tool, Column
 from openpilot.selfdrive.car.fw_query_definitions import FwQueryConfig, Request, StdQueries, p16
 
@@ -19,14 +19,18 @@ class CarControllerParams:
     self.STEER_DRIVER_MULTIPLIER = 50  # weight driver torque heavily
     self.STEER_DRIVER_FACTOR = 1       # from dbc
 
-    if CP.flags & SubaruFlags.GLOBAL_GEN2:
-      self.STEER_MAX = 1000
-      self.STEER_DELTA_UP = 40
-      self.STEER_DELTA_DOWN = 40
-    elif CP.carFingerprint == CAR.SUBARU_IMPREZA_2020:
-      self.STEER_MAX = 1439
+    if CP.flags & SubaruFlags.LKAS_ANGLE:
+      self.ANGLE_RATE_LIMIT_UP = AngleRateLimit(speed_bp=[0.], angle_v=[1.])
+      self.ANGLE_RATE_LIMIT_DOWN = AngleRateLimit(speed_bp=[0.], angle_v=[1.])
     else:
-      self.STEER_MAX = 2047
+      if CP.flags & SubaruFlags.GLOBAL_GEN2:
+        self.STEER_MAX = 1000
+        self.STEER_DELTA_UP = 40
+        self.STEER_DELTA_DOWN = 40
+      elif CP.carFingerprint == CAR.SUBARU_IMPREZA_2020:
+        self.STEER_MAX = 1439
+      else:
+        self.STEER_MAX = 2047
 
   THROTTLE_MIN = 808
   THROTTLE_MAX = 3400
@@ -66,6 +70,7 @@ class SubaruFlags(IntFlag):
   PREGLOBAL = 16
   HYBRID = 32
   LKAS_ANGLE = 64
+  ES_STATUS = 128
 
 
 GLOBAL_ES_ADDR = 0x787
@@ -194,19 +199,23 @@ class CAR(Platforms):
   SUBARU_FORESTER_2022 = SubaruPlatformConfig(
     [SubaruCarDocs("Subaru Forester 2022-24", "All", car_parts=CarParts.common([CarHarness.subaru_c]))],
     SUBARU_FORESTER.specs,
-    flags=SubaruFlags.LKAS_ANGLE,
+    flags=SubaruFlags.LKAS_ANGLE | SubaruFlags.ES_STATUS,
   )
   SUBARU_OUTBACK_2023 = SubaruGen2PlatformConfig(
     [SubaruCarDocs("Subaru Outback 2023", "All", car_parts=CarParts.common([CarHarness.subaru_d]))],
     SUBARU_OUTBACK.specs,
-    flags=SubaruFlags.LKAS_ANGLE,
+    flags=SubaruFlags.LKAS_ANGLE | SubaruFlags.ES_STATUS,
+  )
+  SUBARU_LEGACY_2023 = SubaruGen2PlatformConfig(
+    [SubaruCarDocs("Subaru Legacy 2023", "All", car_parts=CarParts.common([CarHarness.subaru_d]))],
+    SUBARU_LEGACY.specs,
+    flags=SubaruFlags.LKAS_ANGLE | SubaruFlags.ES_STATUS,
   )
   SUBARU_ASCENT_2023 = SubaruGen2PlatformConfig(
     [SubaruCarDocs("Subaru Ascent 2023", "All", car_parts=CarParts.common([CarHarness.subaru_d]))],
     SUBARU_ASCENT.specs,
     flags=SubaruFlags.LKAS_ANGLE,
   )
-
 
 SUBARU_VERSION_REQUEST = bytes([uds.SERVICE_TYPE.READ_DATA_BY_IDENTIFIER]) + \
   p16(uds.DATA_IDENTIFIER_TYPE.APPLICATION_DATA_IDENTIFICATION)
@@ -264,6 +273,15 @@ FW_QUERY_CONFIG = FwQueryConfig(
       whitelist_ecus=[Ecu.abs, Ecu.eps, Ecu.fwdCamera, Ecu.engine, Ecu.transmission],
       bus=1,
       obd_multiplexing=False,
+    ),
+    Request(
+      [StdQueries.SHORT_TESTER_PRESENT_REQUEST, SUBARU_VERSION_REQUEST],
+      [StdQueries.SHORT_TESTER_PRESENT_REQUEST, SUBARU_VERSION_RESPONSE],
+    ),
+    # some eyesight modules don't like TESTER_PRESENT
+    Request(
+      [SUBARU_VERSION_REQUEST],
+      [SUBARU_VERSION_RESPONSE],
     ),
   ],
   # We don't get the EPS from non-OBD queries on GEN2 cars. Note that we still attempt to match when it exists

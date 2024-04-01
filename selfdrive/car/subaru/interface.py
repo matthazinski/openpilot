@@ -1,6 +1,6 @@
 from cereal import car
 from panda import Panda
-from openpilot.selfdrive.car import get_safety_config
+from openpilot.selfdrive.car import STD_CARGO_KG, get_safety_config
 from openpilot.selfdrive.car.disable_ecu import disable_ecu
 from openpilot.selfdrive.car.interfaces import CarInterfaceBase
 from openpilot.selfdrive.car.subaru.values import CAR, GLOBAL_ES_ADDR, SubaruFlags
@@ -16,7 +16,7 @@ class CarInterface(CarInterfaceBase):
     # - replacement for ES_Distance so we can cancel the cruise control
     # - to find the Cruise_Activated bit from the car
     # - proper panda safety setup (use the correct cruise_activated bit, throttle from Throttle_Hybrid, etc)
-    ret.dashcamOnly = bool(ret.flags & (SubaruFlags.PREGLOBAL | SubaruFlags.LKAS_ANGLE | SubaruFlags.HYBRID))
+    ret.dashcamOnly = bool(ret.flags & (SubaruFlags.PREGLOBAL | SubaruFlags.HYBRID))
     ret.autoResumeSng = False
 
     # Detect infotainment message sent from the camera
@@ -31,6 +31,10 @@ class CarInterface(CarInterfaceBase):
       ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.subaru)]
       if ret.flags & SubaruFlags.GLOBAL_GEN2:
         ret.safetyConfigs[0].safetyParam |= Panda.FLAG_SUBARU_GEN2
+      if ret.flags & SubaruFlags.LKAS_ANGLE:
+        ret.safetyConfigs[0].safetyParam |= Panda.FLAG_SUBARU_LKAS_ANGLE
+      if ret.flags & SubaruFlags.ES_STATUS:
+        ret.safetyConfigs[0].safetyParam |= Panda.FLAG_SUBARU_ES_STATUS
 
     ret.steerLimitTimer = 0.4
     ret.steerActuatorDelay = 0.1
@@ -64,12 +68,20 @@ class CarInterface(CarInterfaceBase):
       ret.steerActuatorDelay = 0.1
 
     elif candidate in (CAR.SUBARU_FORESTER, CAR.SUBARU_FORESTER_2022, CAR.SUBARU_FORESTER_HYBRID):
+      ret.mass = 1568. + STD_CARGO_KG
+      ret.wheelbase = 2.67
+      ret.centerToFront = ret.wheelbase * 0.5
+      ret.steerRatio = 17           # learned, 14 stock
       ret.lateralTuning.init('pid')
       ret.lateralTuning.pid.kf = 0.000038
       ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0., 14., 23.], [0., 14., 23.]]
       ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.01, 0.065, 0.2], [0.001, 0.015, 0.025]]
 
-    elif candidate in (CAR.SUBARU_OUTBACK, CAR.SUBARU_LEGACY, CAR.SUBARU_OUTBACK_2023):
+    elif candidate in (CAR.SUBARU_OUTBACK, CAR.SUBARU_LEGACY, CAR.SUBARU_OUTBACK_2023, CAR.SUBARU_LEGACY_2023):
+      ret.mass = 1568. + STD_CARGO_KG
+      ret.wheelbase = 2.67
+      ret.centerToFront = ret.wheelbase * 0.5
+      ret.steerRatio = 17
       ret.steerActuatorDelay = 0.1
 
     elif candidate in (CAR.SUBARU_FORESTER_PREGLOBAL, CAR.SUBARU_OUTBACK_PREGLOBAL_2018):
@@ -84,7 +96,7 @@ class CarInterface(CarInterfaceBase):
       raise ValueError(f"unknown car: {candidate}")
 
     ret.experimentalLongitudinalAvailable = not (ret.flags & (SubaruFlags.GLOBAL_GEN2 | SubaruFlags.PREGLOBAL |
-                                                              SubaruFlags.LKAS_ANGLE | SubaruFlags.HYBRID))
+                                                              SubaruFlags.HYBRID))
     ret.openpilotLongitudinalControl = experimental_long and ret.experimentalLongitudinalAvailable
 
     if ret.flags & SubaruFlags.GLOBAL_GEN2 and ret.openpilotLongitudinalControl:
@@ -98,6 +110,12 @@ class CarInterface(CarInterfaceBase):
 
       ret.stoppingControl = True
       ret.safetyConfigs[0].safetyParam |= Panda.FLAG_SUBARU_LONG
+
+    if ret.flags & SubaruFlags.LKAS_ANGLE:
+      ret.steerControlType = car.CarParams.SteerControlType.angle
+    else:
+      ret.steerControlType = car.CarParams.SteerControlType.torque
+      CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
 
     return ret
 

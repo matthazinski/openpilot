@@ -1,6 +1,6 @@
 from openpilot.common.numpy_fast import clip, interp
 from opendbc.can.packer import CANPacker
-from openpilot.selfdrive.car import apply_driver_steer_torque_limits, common_fault_avoidance
+from openpilot.selfdrive.car import apply_driver_steer_torque_limits, apply_std_steer_angle_limits, common_fault_avoidance
 from openpilot.selfdrive.car.interfaces import CarControllerBase
 from openpilot.selfdrive.car.subaru import subarucan
 from openpilot.selfdrive.car.subaru.values import DBC, GLOBAL_ES_ADDR, CanBus, CarControllerParams, SubaruFlags
@@ -32,28 +32,38 @@ class CarController(CarControllerBase):
 
     # *** steering ***
     if (self.frame % self.p.STEER_STEP) == 0:
-      apply_steer = int(round(actuators.steer * self.p.STEER_MAX))
+      # angle based steering
+      if self.CP.flags & SubaruFlags.LKAS_ANGLE:
+        apply_steer = apply_std_steer_angle_limits(actuators.steeringAngleDeg, self.apply_steer_last, CS.out.vEgoRaw, self.p)
 
-      # limits due to driver torque
+        if not CC.latActive:
+          apply_steer = CS.out.steeringAngleDeg
 
-      new_steer = int(round(apply_steer))
-      apply_steer = apply_driver_steer_torque_limits(new_steer, self.apply_steer_last, CS.out.steeringTorque, self.p)
+        can_sends.append(subarucan.create_steering_control_angle(self.packer, apply_steer, CC.latActive))
 
-      if not CC.latActive:
-        apply_steer = 0
-
-      if self.CP.flags & SubaruFlags.PREGLOBAL:
-        can_sends.append(subarucan.create_preglobal_steering_control(self.packer, self.frame // self.p.STEER_STEP, apply_steer, CC.latActive))
+      # torque based steering
       else:
-        apply_steer_req = CC.latActive
+        apply_steer = int(round(actuators.steer * self.p.STEER_MAX))
 
-        if self.CP.flags & SubaruFlags.STEER_RATE_LIMITED:
-          # Steering rate fault prevention
-          self.steer_rate_counter, apply_steer_req = \
-            common_fault_avoidance(abs(CS.out.steeringRateDeg) > MAX_STEER_RATE, apply_steer_req,
-                                  self.steer_rate_counter, MAX_STEER_RATE_FRAMES)
+        # limits due to driver torque
+        new_steer = int(round(apply_steer))
+        apply_steer = apply_driver_steer_torque_limits(apply_steer, self.apply_steer_last, CS.out.steeringTorque, self.p)
 
-        can_sends.append(subarucan.create_steering_control(self.packer, apply_steer, apply_steer_req))
+        if not CC.latActive:
+          apply_steer = 0
+
+        if self.CP.flags & SubaruFlags.PREGLOBAL:
+          can_sends.append(subarucan.create_preglobal_steering_control(self.packer, self.frame // self.p.STEER_STEP, apply_steer, CC.latActive))
+        else:
+          apply_steer_req = CC.latActive
+
+          if self.CP.flags & SubaruFlags.STEER_RATE_LIMITED:
+            # Steering rate fault prevention
+            self.steer_rate_counter, apply_steer_req = \
+              common_fault_avoidance(abs(CS.out.steeringRateDeg) > MAX_STEER_RATE, apply_steer_req,
+                                    self.steer_rate_counter, MAX_STEER_RATE_FRAMES)
+
+          can_sends.append(subarucan.create_steering_control(self.packer, apply_steer, apply_steer_req))
 
       self.apply_steer_last = apply_steer
 
@@ -137,8 +147,10 @@ class CarController(CarControllerBase):
           can_sends.append(subarucan.create_es_static_2(self.packer))
 
     new_actuators = actuators.copy()
-    new_actuators.steer = self.apply_steer_last / self.p.STEER_MAX
-    new_actuators.steerOutputCan = self.apply_steer_last
-
+    if self.CP.flags & SubaruFlags.LKAS_ANGLE:
+      new_actuators.steeringAngleDeg = self.apply_steer_last
+    else:
+      new_actuators.steer = self.apply_steer_last / self.p.STEER_MAX
+      new_actuators.steerOutputCan = self.apply_steer_last
     self.frame += 1
     return new_actuators, can_sends
